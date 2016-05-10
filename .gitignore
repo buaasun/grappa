@@ -99,4 +99,4 @@ routing.dot
 # Databases, R plotting
 *.sqlite
 .RData
-
+.idea/
