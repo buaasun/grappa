@@ -46,6 +46,7 @@
 #include <boost/type_traits/remove_pointer.hpp>
 #include <boost/typeof/typeof.hpp>
 #include <boost/static_assert.hpp>
+#include <thread>
 
 #ifdef GRAPPA_TRACE
 #include <TAU.h>
@@ -234,7 +235,27 @@ void run(FP fp) {
   on_exit( [] ( int retval, void * payload) { _exit(retval); }, nullptr );
   
   // start the scheduler
-  Grappa::impl::global_scheduler.run( );
+  int thread_num=2;
+  std::vector<std::thread>threads(thread_num);
+  int thread_id=0;
+  for(auto &thr:threads){
+    thread_id++;
+    thr=std::thread([&thread_id]{
+//#ifdef CPU_SET
+//
+//          cpu_set_t mask;
+//          CPU_ZERO( &mask );
+//          CPU_SET( thread_id, &mask );
+//      pthread_setaffinity_np( pthread_self(), sizeof(mask), &mask );
+//#endif
+      Grappa::impl::global_scheduler.run();
+    });
+  }
+  for(auto &thr:threads){
+    thr.join();
+  }
+
+  Grappa::impl::global_scheduler.run();
 
 #ifdef VTRACE_SAMPLED
   // this doesn't really add anything to the profiled trace

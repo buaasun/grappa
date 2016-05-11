@@ -100,10 +100,10 @@ class TaskingScheduler : public Scheduler {
     ThreadQueue unassignedQ;
 
     /// Master Worker that represents the main program thread
-    Worker * master;
+    thread_local  static    Worker * master;
 
     /// Always points the the Worker that is currently running
-    Worker * current_thread; 
+    thread_local  static    Worker * current_thread;
     threadid_t nextId;
 
     /// number of idle workers

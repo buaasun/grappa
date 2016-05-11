@@ -35,6 +35,7 @@
 #include "Task.hpp"
 
 #include <gflags/gflags.h>
+#include <thread>
 #include "../PerformanceTools.hpp"
 
 /// TODO: this should be based on some actual time-related metric so behavior is predictable across machines
@@ -68,15 +69,16 @@ namespace Grappa {
 
 /// global TaskingScheduler for this Core
 TaskingScheduler global_scheduler;
-
+  thread_local Worker * TaskingScheduler::master;
+  thread_local Worker * TaskingScheduler::current_thread;
 /// Create uninitialized TaskingScheduler.
 /// init() must subsequently be called before fully initialized.
   TaskingScheduler::TaskingScheduler ( )
   : readyQ ( )
   , periodicQ ( )
   , unassignedQ ( )
-  , master ( NULL )
-  , current_thread ( NULL )
+//  , master ( NULL )
+//  , current_thread ( NULL )
   , nextId ( 1 )
   , num_idle ( 0 )
   , num_active_tasks( 0 )
@@ -114,6 +116,9 @@ void TaskingScheduler::init ( Worker * master_arg, TaskManager * taskman ) {
 /// Give control to the scheduler until task layer
 /// says that it is finished.
 void TaskingScheduler::run ( ) {
+  if(master== nullptr)
+    master=convert_to_master();
+  current_thread=master;
   StateTimer::setThreadState( StateTimer::SCHEDULER );
   StateTimer::enterState_scheduler();
   while (thread_wait( NULL ) != NULL) { } // nothing

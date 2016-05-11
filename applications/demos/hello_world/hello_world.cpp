@@ -35,20 +35,40 @@
 #include <Grappa.hpp>
 using namespace Grappa;
 
-int main( int argc, char * argv[] ) {
-  init( &argc, &argv );
-  
-  run([]{
-    
-    on_all_cores([]{
-      
-      LOG(INFO) << "Hello world from locale " << mylocale() << " core " << mycore() << " hostname " << hostname();
-      
+int main(int argc, char *argv[]) {
+  init(&argc, &argv);
+
+
+  run([] {
+
+//    on_all_cores([]{
+    CompletionEvent ce;
+
+
+    ConditionVariable *cv = new ConditionVariable();
+    for(int task=0;task<2;task++)
+    spawn(&ce, [=] {
+      for (int i = 0; i < 5; i++) {
+
+        LOG(INFO) <<"task "<<task<< " Hello world " << i << " from locale " << mylocale() << " core " << mycore()
+            << " current thread=" << std::this_thread::get_id()
+            << " current CPU=" << sched_getcpu()
+            << " current worker="  << current_worker()->id;
+        usleep(100*1000);
+//        Grappa::yield();
+      }
+
     });
-    
+
+    ce.wait();
+    LOG(INFO) << "Hello world from locale " << mylocale() << " core " << mycore();
+
+//    });
+
   });
-  
+  LOG(INFO) << "finish world from locale " << mylocale() << " core " << mycore();
+
   finalize();
-  
+
   return 0;
 }

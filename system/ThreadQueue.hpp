@@ -38,6 +38,8 @@
 #include <limits>
 #include <glog/logging.h>
 #include <iostream>
+#include <mutex>
+#include <atomic>
 
 namespace Grappa {
 
@@ -48,7 +50,7 @@ class ThreadQueue {
         Worker * head;
         Worker * tail;
         uint64_t len;
-        
+        std::mutex  mtx_;
       public:
         std::ostream& dump( std::ostream& o ) const {
             return o << "[length:" << len
@@ -91,10 +93,13 @@ namespace Grappa {
 class PrefetchingThreadQueue {
   private:
     ThreadQueue * queues;
-    uint64_t eq_index;
-    uint64_t dq_index;
-    uint64_t num_queues;
-    uint64_t len;
+    std::atomic_uint_fast64_t eq_index;
+    std::atomic_uint_fast64_t dq_index;
+    std::atomic_uint_fast64_t num_queues;
+    std::atomic_uint_fast64_t len;
+    std::mutex mtx_;
+
+
 
     void check_invariants() {
       uint64_t max=std::numeric_limits<uint64_t>::min();
@@ -105,9 +110,9 @@ class PrefetchingThreadQueue {
         min = _min<uint64_t>( min, queues[i].length() );
         sum += queues[i].length();
       }
-      CHECK( static_cast<int64_t>(max) - static_cast<int64_t>(min) >= 0 );
-      CHECK( max - min <= 1 ) << "min=" << min << " max=" << max;
-      CHECK( sum == len );
+//      CHECK( static_cast<int64_t>(max) - static_cast<int64_t>(min) >= 0 );
+//      CHECK( max - min <= 1 ) << "min=" << min << " max=" << max;
+//      CHECK( sum == len );
     }
 
 
@@ -130,16 +135,18 @@ class PrefetchingThreadQueue {
     }
 
     void enqueue(Worker * t) {
+      std::lock_guard<std::mutex> lock(mtx_);
       queues[eq_index].enqueue( t );
       eq_index = ((eq_index+1) == num_queues) ? 0 : eq_index+1;
       len++;
-      
+
 #ifdef DEBUG
       check_invariants();
 #endif
     }
 
     Worker * dequeue() {
+      std::lock_guard<std::mutex> lock(mtx_);
       Worker * result = queues[dq_index].dequeueLazy();
       if ( result ) {
         uint64_t t = dq_index;
@@ -180,6 +187,7 @@ class PrefetchingThreadQueue {
         return result;
       } else {
 #ifdef DEBUG
+        LOG_IF(INFO,dq_index != eq_index)<<"dq_index= "<<dq_index<<" eq_index="<<eq_index;
         CHECK( dq_index == eq_index ) << "Empty queue invariant violated";
         for ( uint64_t i=0; i<num_queues; i++ ) {
           CHECK( queues[i].length() == 0 ) << "Empty queue invariant violated";
@@ -195,6 +203,7 @@ class PrefetchingThreadQueue {
 
 /// Remove a Worker from the queue and return it
 inline Worker * ThreadQueue::dequeue() {
+  std::lock_guard<std::mutex> lock(mtx_);
     Worker * result = head;
     if (result != NULL) {
         head = result->next;
@@ -210,6 +219,7 @@ inline Worker * ThreadQueue::dequeue() {
 /// Remove a Worker from the queue and return it.
 /// Does not change the links of the returned Worker.
 inline Worker * ThreadQueue::dequeueLazy() {
+  std::lock_guard<std::mutex> lock(mtx_);
     Worker * result = head;
     if (result != NULL) {
         head = result->next;
@@ -226,6 +236,7 @@ inline Worker * ThreadQueue::dequeueLazy() {
 
 /// Add a Worker to the queue
 inline void ThreadQueue::enqueue( Worker * t) {
+  std::lock_guard<std::mutex> lock(mtx_);
     if (head==NULL) {
         head = t;
     } else {
