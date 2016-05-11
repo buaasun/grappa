@@ -150,7 +150,7 @@ class TaskingScheduler : public Scheduler {
     bool queuesFinished();
 
     /// make sure we don't context switch when we don't want to
-    bool in_no_switch_region_;
+    thread_local static bool in_no_switch_region_;
 
     Grappa::Timestamp prev_ts;
     Grappa::Timestamp prev_stats_blob_ts;

@@ -69,8 +69,9 @@ namespace Grappa {
 
 /// global TaskingScheduler for this Core
 TaskingScheduler global_scheduler;
-  thread_local Worker * TaskingScheduler::master;
-  thread_local Worker * TaskingScheduler::current_thread;
+  thread_local Worker * TaskingScheduler::master{0};
+  thread_local Worker * TaskingScheduler::current_thread{0};
+  thread_local bool TaskingScheduler::in_no_switch_region_{false};
 /// Create uninitialized TaskingScheduler.
 /// init() must subsequently be called before fully initialized.
   TaskingScheduler::TaskingScheduler ( )
@@ -87,7 +88,7 @@ TaskingScheduler global_scheduler;
   , work_args( NULL )
   , previous_periodic_ts( 0 ) 
   , periodic_poll_ticks( 0 ) 
-  , in_no_switch_region_( false )
+//  , in_no_switch_region_( false )
   , prev_ts( 0 )
   , prev_stats_blob_ts( 0 )
     , stats( this )
